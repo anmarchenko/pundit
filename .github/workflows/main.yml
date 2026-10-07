@@ -11,8 +11,6 @@ permissions:
 
 jobs:
   matrix-test:
-    runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.allow-failure || false }}
     strategy:
       fail-fast: false
       matrix:
@@ -30,20 +28,17 @@ jobs:
             allow-failure: true
           - ruby-version: "truffleruby-head"
             allow-failure: true
-
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          rubygems: latest
-          ruby-version: ${{ matrix.ruby-version }}
-          bundler-cache: true
-      - name: Run tests
-        run: bundle exec rspec
+    uses: ./.github/workflows/rspec.yml
+    with:
+      ruby-version: ${{ matrix.ruby-version }}
+      allow-failure: ${{ matrix.allow-failure || false }}
+    secrets:
+      DD_API_KEY: ${{ secrets.DD_API_KEY }}
 
   test:
     runs-on: ubuntu-latest
+    env:
+      DD_API_KEY: ${{ secrets.DD_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up Ruby
@@ -52,6 +47,13 @@ jobs:
           rubygems: latest
           ruby-version: "ruby"
           bundler-cache: true
+      - name: Configure Datadog Test Optimization
+        if: ${{ env.DD_API_KEY != '' }}
+        uses: datadog/test-visibility-github-action@v3
+        with:
+          languages: ruby
+          api_key: ${{ env.DD_API_KEY }}
+          site: datadoghq.com
       - name: Run tests
         run: bundle exec rspec
         env:
